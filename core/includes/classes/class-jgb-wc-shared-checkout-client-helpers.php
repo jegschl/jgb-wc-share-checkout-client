@@ -188,5 +188,30 @@ class Jgb_Wc_Shared_Checkout_Client_Helpers{
 		exit;
 	}
 
-	
+	public function manage_wc_prods_updates_request(){
+
+		global $wp_query;
+
+		
+ 
+		// if this is not a request for WPUS or a singular object then bail
+		if ( $wp_query->query_vars['name'] != JWSCC_WCPRODS_UPDS_RESOURCE_SFX )
+			return;
+
+
+		$pd_uel_ecd = $_GET['od'];
+		$pd_base64_ecd = urldecode( $pd_uel_ecd );
+		$pd_json_ecd = base64_decode( $pd_base64_ecd );
+		$pd = json_decode( $pd_json_ecd, true );
+
+		if( count( $pd ) > 0 ){
+
+		}
+
+		exit;
+	}
+
+	private function update_product( $data ){
+		
+	}
 }
