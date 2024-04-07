@@ -192,26 +192,119 @@ class Jgb_Wc_Shared_Checkout_Client_Helpers{
 
 		global $wp_query;
 
-		
- 
 		// if this is not a request for WPUS or a singular object then bail
 		if ( $wp_query->query_vars['name'] != JWSCC_WCPRODS_UPDS_RESOURCE_SFX )
 			return;
 
+		/*
+			Operation Data GET query parameter definition 
+			
+			1.- request-operation: 
+				'wc-admin': Update from WC Product admin.
+				'wc-import': Update from WC product update tool.
+				'wc-sell': Update from WC sell.
+			
+			2.- products-data: Array width 
+				SKU (mandatory), 
+				Product name, 
+				product regular price,
+				Product stock
 
-		$pd_uel_ecd = $_GET['od'];
+			3.- send-response (1 || 0)
+				Send response in json format.
+
+			
+		*/
+
+		$pd_uel_ecd = $_GET['operation-data'];
 		$pd_base64_ecd = urldecode( $pd_uel_ecd );
 		$pd_json_ecd = base64_decode( $pd_base64_ecd );
 		$pd = json_decode( $pd_json_ecd, true );
 
-		if( count( $pd ) > 0 ){
-
+		if( count( $pd['products-data'] ) > 0 ){
+			$log = [];
+			foreach( $pd as $p ){
+				$log[] = $this->update_product( $p );
+			}
 		}
 
+		if( isset( $_GET['send-response'] ) && $_GET['send-response'] == '1' ){
+			$r = [
+				'requestOperation' => $pd['resuqest-operation'],
+				'logs' => $log,
+				'sendResponse' => $pd['send-response']
+			];
+		}
+
+		header('Content-type: application/json');
+		echo json_encode($r);
 		exit;
 	}
 
 	private function update_product( $data ){
-		
+		$r = [
+			'error' => false
+		];
+
+		if( !isset( $data['sku'] ) ){
+			$r['error'] = true;
+			$r['err_details'] = [
+				'code' => 1,
+				'msg' => 'sku not defined'
+			];
+			return $r;
+		}
+
+		$l = [];
+		$fu = [];
+
+		foreach( $data['fields'] as $f ){
+			$p = $this->get_product_by_sku( $data['sku'], false );
+			if( !is_null( $p ) ){
+				// actualizar información del producto.
+
+				$mandatory_update = false; 
+
+				if( isset( $f['name'] ) ){
+					$l['old_v'] = $p->get_name();
+					$p->set_name( $f['name'] );
+					$l['new_v'] = $f['name'];
+					$fu['name'] = $l;
+					$mandatory_update = true;
+				}
+
+				if( isset( $f['price'] ) ){
+					$l['old_v'] = $p->get_name();
+					$p->set_regular_price( $f['price'] );
+					$l['new_v'] = $f['price'];
+					$fu['price'] = $l;
+					$mandatory_update = true;
+				}
+
+				if( isset( $f['stock'] ) ){
+					$l['old_v'] = $p->get_name();
+					$p->set_stock_quantity( $f['stock'] );
+					$l['new_v'] = $f['stock'];
+					$fu['stock'] = $l;
+					$mandatory_update = true;
+				}
+
+				if( $mandatory_update ){
+					$p->save();
+					
+				}
+
+				$r['sku'] = $data['sku'];
+				$r['field_updates'] = $fu;
+				
+			} else {
+				$r['error']  =  true;
+				$r['err_details'] = [
+					'code' => 2,
+					'msg' => "product with SKU {$data['sku']} not exist"
+				];
+			}
+		}
+
 	}
 }
